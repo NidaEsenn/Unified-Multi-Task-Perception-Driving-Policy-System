@@ -6,6 +6,7 @@ dataset and model. Customize dataset paths, hyperparameters, and augmentations.
 from __future__ import annotations
 
 from typing import Any
+from pathlib import Path
 import argparse
 import logging
 import time
@@ -17,7 +18,7 @@ from torch.utils.data import DataLoader
 
 from policy.convlstm_model import ConvLSTMPolicy
 from utils.datasets import DrivingFramesDataset, FrameDataset
-from utils.config import CONFIG
+from utils.config import CONFIG, STEERING_DATASET_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +60,14 @@ def train(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", type=str, default=CONFIG.CURATED_DIR, help="Path to training dataset (TODO)")
+    parser.add_argument("--data-dir", type=str, default=str(STEERING_DATASET_DIR), help="Path to steering dataset (Udacity) (TODO)")
     parser.add_argument("--seq-len", type=int, default=4, help="Sequence length for policy frames")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs (TODO tune)")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size (TODO tune)")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     args = parser.parse_args()
 
-    dataset = DrivingFramesDataset(root_dir=args.data_dir, sequence_length=args.seq_len, augment=True)
+    dataset = DrivingFramesDataset(root_dir=args.data_dir, labels_csv=str(Path(args.data_dir) / "driving_log.csv"), sequence_length=args.seq_len, augment=True)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     model = ConvLSTMPolicy()
     train(loader, model, epochs=args.epochs, lr=args.lr)

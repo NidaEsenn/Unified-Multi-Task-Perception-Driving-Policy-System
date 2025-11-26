@@ -13,8 +13,10 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 
+from pathlib import Path
 from policy.convlstm_model import ConvLSTMPolicy
-from utils.datasets import FrameDataset
+from utils.datasets import DrivingFramesDataset, FrameDataset
+from utils.config import CONFIG, STEERING_DATASET_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +41,12 @@ def evaluate(model: torch.nn.Module, loader: DataLoader, device: str = "cpu") ->
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", type=str, default="data/val", help="Path to validation dataset (TODO)")
+    parser.add_argument("--data-dir", type=str, default=str(STEERING_DATASET_DIR), help="Path to validation dataset (Udacity steering) (TODO)")
     parser.add_argument("--weights", type=str, default="", help="Path to trained weights (TODO)")
     args = parser.parse_args()
 
-    dataset = FrameDataset(root_dir=args.data_dir)
+    # choose DrivingFramesDataset if sequence-based policy evaluation is needed
+    dataset = DrivingFramesDataset(root_dir=args.data_dir, labels_csv=str(Path(args.data_dir) / "driving_log.csv"))
     loader = DataLoader(dataset, batch_size=8, shuffle=False, num_workers=4)
     model = ConvLSTMPolicy()
     if args.weights:

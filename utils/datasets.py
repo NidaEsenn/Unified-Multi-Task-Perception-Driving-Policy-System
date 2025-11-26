@@ -6,9 +6,10 @@ Customizable and lightweight augmentations are included for data variability.
 """
 from __future__ import annotations
 
-from typing import Optional, Callable, Dict, Any, List, Tuple
+from typing import Optional, Callable, Dict, Any, List, Tuple, Union
 from pathlib import Path
 import csv
+import os
 import random
 import math
 
@@ -22,7 +23,7 @@ except Exception:
     torch = None
     Dataset = object  # type: ignore
 
-from utils.config import CONFIG
+from utils.config import CONFIG, STEERING_DATASET_DIR
 
 
 def _read_labels_csv(csv_path: str | Path) -> Dict[str, float]:
@@ -82,20 +83,53 @@ class DrivingFramesDataset(Dataset):
 
     def __init__(
         self,
-        root_dir: str | Path,
-        labels_csv: Optional[str | Path] = None,
+        root_dir: Optional[Union[str, Path]] = None,
+        labels_csv: Optional[Union[str, Path]] = None,
         sequence_length: int = 1,
         transform: Optional[Callable[[np.ndarray], torch.Tensor]] = None,
         augment: bool = True,
         step: int = 1,
     ) -> None:
-        self.root_dir = Path(root_dir)
-        self.paths = sorted([str(p) for p in self.root_dir.rglob("*.jpg")])
+        # default to STEERING_DATASET_DIR provided by CONFIG
+        self.root_dir = Path(root_dir) if root_dir else Path(STEERING_DATASET_DIR)
+        # default CSV if not provided
+        self.labels_csv = Path(labels_csv) if labels_csv else Path(STEERING_DATASET_DIR) / "driving_log.csv"
+        # Read labels and center filenames from CSV if present
+        self.labels: Dict[str, float] = {}
+        self.paths: List[str] = []
+        if self.labels_csv.exists():
+            # Parse CSV to extract center image filenames and steering values
+            with open(self.labels_csv, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    center_path = row.get("center") or row.get("center_image") or row.get("image")
+                    if not center_path:
+                        # fallback: try filename column
+                        center_path = row.get("filename") or row.get("file")
+                    if not center_path:
+                        continue
+                    basename = os.path.basename(center_path)
+                    steering_val = 0.0
+                    try:
+                        steering_val = float(row.get("steering", 0.0))
+                    except Exception:
+                        steering_val = 0.0
+                    self.labels[basename] = steering_val
+                    img_path = self.root_dir / "IMG" / basename
+                    if img_path.exists():
+                        self.paths.append(str(img_path))
+        else:
+            # fallback to scanning IMG folder
+            img_dir = self.root_dir / "IMG"
+            if img_dir.exists():
+                self.paths = sorted([str(p) for p in img_dir.rglob("*.jpg")])
+            else:
+                self.paths = sorted([str(p) for p in self.root_dir.rglob("*.jpg")])
         self.sequence_length = int(sequence_length)
         self.step = int(step)
         self.transform = transform
         self.augment = bool(augment)
-        self.labels = _read_labels_csv(labels_csv) if labels_csv else {}
+        # labels already loaded if CSV present
 
         # number of valid starting indices for sequences
         if self.sequence_length <= 1:

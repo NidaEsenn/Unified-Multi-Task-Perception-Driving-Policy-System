@@ -59,6 +59,12 @@ CONFIG = Config(
     DEVICE=os.environ.get("DEVICE", "cpu"),
 )
 
+# Project root and dataset/checkpoint constants
+ROOT_DIR = Path(__file__).resolve().parents[1]
+STEERING_DATASET_DIR = ROOT_DIR / "data" / "steering_dataset"
+POLICY_CHECKPOINT_DIR = ROOT_DIR / "checkpoints" / "policy"
+POLICY_CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def load_config(path: str | Path) -> Config:
     """Load YAML config and return an `AppConfig` instance.
