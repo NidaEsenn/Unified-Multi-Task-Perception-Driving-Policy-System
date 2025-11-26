@@ -50,6 +50,18 @@ python -m realtime_demo.overlay_demo --source 0 --weights-det yolov8n.pt
 python -m policy.train_policy --data-dir data/train --epochs 10 --batch-size 8 --lr 1e-3
 ```
 
+### Real-time demo outputs
+The demo writes annotated overlay videos to an `outputs/` directory by default. These files are generated artifacts and are ignored by Git (see `.gitignore`).
+
+Example (generate a short demo and save it to outputs/demo_output.mp4):
+```bash
+python -m realtime_demo.overlay_demo \
+  --input-video data/raw_videos/my_drive.mp4 \
+  --output-video outputs/demo_output.mp4 \
+  --seq-len 3 --device cpu --max-frames 200
+```
+The recorded `outputs/demo_output.mp4` contains bounding boxes for detected vehicles, lane and drivable-area mask overlays, and a small steering HUD.
+
 ## Contributing
 
 1. Fork the repo, create a feature branch and open a PR.

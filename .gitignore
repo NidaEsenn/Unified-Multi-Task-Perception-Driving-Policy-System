@@ -72,5 +72,9 @@ models/
 *.pth
 *.ckpt
 
+# Demo output and artifacts
+outputs/
+*.mp4
+
 # backups
 *~
