@@ -17,7 +17,7 @@ class ConvLSTMPolicy(nn.Module):
     This is intentionally minimal and acts as a scaffold for experiments.
     """
 
-    def __init__(self, in_channels: int = 3, hidden_dim: int = 64, num_outputs: int = 2) -> None:
+    def __init__(self, in_channels: int = 3, hidden_dim: int = 32, num_outputs: int = 1) -> None:
         super().__init__()
         # example encoder
         self.encoder = nn.Sequential(nn.Conv2d(in_channels, hidden_dim, 3, padding=1), nn.ReLU())

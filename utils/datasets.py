@@ -65,77 +65,80 @@ def _random_horizontal_flip(img: np.ndarray) -> np.ndarray:
 
 
 class DrivingFramesDataset(Dataset):
-    """Dataset for driving frames with optional steering labels.
+    """Udacity-styled DrivingFramesDataset loader.
 
-    Supports sequence mode for policy learning (returns series of frames + label)
-    and single-frame mode for perception tasks.
+    - Expects `driving_log.csv` with columns: center,left,right,steering,...
+    - Default CSV: `STEERING_DATASET_DIR / 'driving_log.csv'` and images in
+      `STEERING_DATASET_DIR / 'IMG'`.
+    - Uses only the `center` column. Stores samples as (img_path, steering).
+    - Supports sequence mode with `seq_len`; sequences are composed of T consecutive
+      frames ending at `idx` (clamped to start at 0), and the label is the steering
+      of the last frame in the sequence.
+    - Augmentations: random brightness and random horizontal flip; when flipped,
+      steering is inverted.
 
     Args:
-        root_dir: folder with collected frames (images) — expected to contain
-            image files, e.g. JPEG/PNG.
-        labels_csv: optional CSV file mapping filenames to numeric labels (steering).
-        sequence_length: how many frames to include in a single example when
-            in sequence mode (policy). sequence_length=1 behaves like single-frame mode.
-        transform: optional callable applied to each frame (after augmentations).
-        augment: whether to apply random augmentations (brightness, shift, flip).
-        step: frame step between items of sequence; for step>1 sequences skip frames between each element.
+        csv_path: explicit path to a driving_log CSV; if None uses
+            `STEERING_DATASET_DIR / 'driving_log.csv'`.
+        seq_len: number of frames in a sequence (T). seq_len=1 returns a single frame and label.
+        augment: whether to apply augmentations.
+        transform: optional callable (PIL/np->tensor) applied to each frame after augment.
     """
-
     def __init__(
         self,
-        root_dir: Optional[Union[str, Path]] = None,
-        labels_csv: Optional[Union[str, Path]] = None,
-        sequence_length: int = 1,
-        transform: Optional[Callable[[np.ndarray], torch.Tensor]] = None,
+        csv_path: Optional[Union[str, Path]] = None,
+        seq_len: int = 1,
         augment: bool = True,
+        transform: Optional[Callable[[np.ndarray], torch.Tensor]] = None,
         step: int = 1,
+        resize: Optional[Tuple[int, int]] = None,
     ) -> None:
-        # default to STEERING_DATASET_DIR provided by CONFIG
-        self.root_dir = Path(root_dir) if root_dir else Path(STEERING_DATASET_DIR)
-        # default CSV if not provided
-        self.labels_csv = Path(labels_csv) if labels_csv else Path(STEERING_DATASET_DIR) / "driving_log.csv"
-        # Read labels and center filenames from CSV if present
-        self.labels: Dict[str, float] = {}
-        self.paths: List[str] = []
-        if self.labels_csv.exists():
-            # Parse CSV to extract center image filenames and steering values
-            with open(self.labels_csv, "r", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
+        # Setup default CSV and image directory paths
+        self.csv_path = Path(csv_path) if csv_path else Path(STEERING_DATASET_DIR) / "driving_log.csv"
+        self.img_dir = Path(STEERING_DATASET_DIR) / "IMG"
+        self.seq_len = int(seq_len)
+        self.step = int(step)
+        self.augment = bool(augment)
+        self.transform = transform
+        # resize: (H, W) to which frames will be resized using cv2
+        from utils.config import CONFIG as _CONFIG
+        default_size = tuple(getattr(_CONFIG, "POLICY_FRAME_SIZE", (96, 192)))
+        self.resize = tuple(resize) if resize else default_size
+
+        # samples holds (Path, steering) pairs
+        self.samples: List[Tuple[Path, float]] = []
+        if self.csv_path.exists():
+            with open(self.csv_path, "r", encoding="utf-8") as f:
+                # CSV may or may not include header; using csv.reader is robust
+                reader = csv.reader(f)
                 for row in reader:
-                    center_path = row.get("center") or row.get("center_image") or row.get("image")
-                    if not center_path:
-                        # fallback: try filename column
-                        center_path = row.get("filename") or row.get("file")
+                    if not row:
+                        continue
+                    center_path = row[0]
                     if not center_path:
                         continue
-                    basename = os.path.basename(center_path)
-                    steering_val = 0.0
+                    center_path_norm = str(center_path).replace("\\", "/").strip()
+                    basename = os.path.basename(center_path_norm)
+                    img_path = self.img_dir / basename
+                    if not img_path.exists():
+                        # skip missing files
+                        continue
                     try:
-                        steering_val = float(row.get("steering", 0.0))
+                        steering_val = float(row[3]) if len(row) > 3 else 0.0
                     except Exception:
                         steering_val = 0.0
-                    self.labels[basename] = steering_val
-                    img_path = self.root_dir / "IMG" / basename
-                    if img_path.exists():
-                        self.paths.append(str(img_path))
+                    self.samples.append((img_path, steering_val))
         else:
-            # fallback to scanning IMG folder
-            img_dir = self.root_dir / "IMG"
-            if img_dir.exists():
-                self.paths = sorted([str(p) for p in img_dir.rglob("*.jpg")])
-            else:
-                self.paths = sorted([str(p) for p in self.root_dir.rglob("*.jpg")])
-        self.sequence_length = int(sequence_length)
-        self.step = int(step)
-        self.transform = transform
-        self.augment = bool(augment)
-        # labels already loaded if CSV present
+            # If CSV doesn't exist, scan IMG folder and set default steering = 0.0
+                if self.img_dir.exists():
+                    for p in sorted(self.img_dir.rglob("*.jpg")):
+                        self.samples.append((p, 0.0))
+        # padding conventions
+        self.sequence_length = int(self.seq_len)
 
         # number of valid starting indices for sequences
-        if self.sequence_length <= 1:
-            self._length = len(self.paths)
-        else:
-            self._length = max(0, len(self.paths) - (self.sequence_length - 1) * self.step)
+        # dataset length equals number of sample entries
+        self._length = len(self.samples)
 
     def __len__(self) -> int:
         return self._length
@@ -146,27 +149,32 @@ class DrivingFramesDataset(Dataset):
         if img is None:
             raise RuntimeError(f"Failed to read image: {path}")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # optionally resize for faster training
+        if self.resize:
+            h, w = self.resize
+            img = cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)
         return img
 
-    def _apply_augmentations(self, frames: List[np.ndarray]) -> Tuple[List[np.ndarray], bool, int]:
+    def _apply_augmentations(self, frames: List[np.ndarray]) -> Tuple[List[np.ndarray], bool]:
         """Apply consistent augmentations across the sequence of frames.
 
-        Returns: frames, flipped_flag, brightness_factor (approx as int) or shift
+        Returns: (frames, flipped_flag)
         """
         flipped = False
         # decide augmentations
         if not self.augment:
-            return frames, flipped, 0
-        if random.random() < 0.5:
+            return frames, flipped
+        # reduce augmentation rates for fast smoke-test
+        if random.random() < 0.3:
             # brightness
             factor = random.uniform(0.8, 1.2)
             frames = [np.clip(frame.astype("float32") * factor, 0, 255).astype("uint8") for frame in frames]
-        if random.random() < 0.5:
+        if random.random() < 0.3:
             frames = [ _random_horizontal_shift(frame, max_shift=16) for frame in frames ]
-        if random.random() < 0.5:
+        if random.random() < 0.25:
             frames = [ _random_horizontal_flip(frame) for frame in frames ]
             flipped = True
-        return frames, flipped, 0
+        return frames, flipped
 
     def _to_tensor(self, frames: List[np.ndarray]) -> torch.Tensor:
         # frames: List[H,W,C] uint8
@@ -177,26 +185,31 @@ class DrivingFramesDataset(Dataset):
         return torch.from_numpy(arr)
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
-        if self.sequence_length <= 1:
-            path = self.paths[idx]
-            img = self._load_frame(path)
+        # clamp idx
+        idx_clamped = max(0, min(idx, self._length - 1))
+        if self.seq_len <= 1:
+            img_path, steering = self.samples[idx_clamped]
+            img = self._load_frame(str(img_path))
             frames = [img]
-            frames, flipped, _ = self._apply_augmentations(frames)
+            frames, flipped = self._apply_augmentations(frames)
             if self.transform:
                 frame_t = self.transform(frames[0])
             else:
                 frame_t = torch.from_numpy(frames[0].astype("float32").transpose(2, 0, 1) / 255.0)
-            out: Dict[str, Any] = {"frames": frame_t, "path": path}
-            # add label if available
-            filename = Path(path).name
-            if filename in self.labels:
-                out["target"] = float(self.labels[filename])
-            return out
+            if flipped:
+                steering = -steering
+            return {"frames": frame_t, "target": torch.tensor(steering, dtype=torch.float32), "path": str(img_path)}
         # sequence mode
-        start = idx
-        indices = [start + i * self.step for i in range(self.sequence_length)]
-        frames = [self._load_frame(self.paths[i]) for i in indices]
-        frames, flipped, _ = self._apply_augmentations(frames)
+        # sequence mode: build indices as a window ending at idx
+        end = idx_clamped
+        start = max(0, end - self.seq_len + 1)
+        indices = list(range(start, end + 1))
+        # if not enough frames at the start, pad by repeating the first frame in the sequence
+        if len(indices) < self.seq_len:
+            pad_needed = self.seq_len - len(indices)
+            indices = [indices[0]] * pad_needed + indices
+        frames = [self._load_frame(str(self.samples[i][0])) for i in indices]
+        frames, flipped = self._apply_augmentations(frames)
         if self.transform:
             frames_t = [self.transform(f) for f in frames]
             # assume transform returns torch.Tensor (C,H,W)
@@ -212,22 +225,64 @@ class DrivingFramesDataset(Dataset):
             else:
                 frames_t = self._to_tensor(frames)
         # label: choose label of last frame in sequence if available
-        last_filename = Path(self.paths[indices[-1]]).name
-        label = float(self.labels.get(last_filename, 0.0))
+        label = float(self.samples[indices[-1]][1])
         if flipped:
             # flip steering sign
             label = -label
-        return {"frames": frames_t, "target": torch.tensor(label, dtype=torch.float32), "path": self.paths[indices[-1]]}
+        return {"frames": frames_t, "target": torch.tensor(label, dtype=torch.float32), "path": str(self.samples[indices[-1]][0])}
+
+
+class FrameDataset(Dataset):
+    """Compatibility wrapper: single-frame dataset loader for perception tasks.
+
+    Returns dict with 'frames' (C,H,W tensor) and 'path'. If labels are present
+    in the steering CSV, returns 'target'.
+    """
+    def __init__(self, root_dir: str | Path, transform: Optional[Callable] = None) -> None:
+        self.root_dir = Path(root_dir)
+        img_dir = self.root_dir / "IMG" if (self.root_dir / "IMG").exists() else self.root_dir
+        self.paths = sorted([str(p) for p in img_dir.rglob("*.jpg")])
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.paths)
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        path = self.paths[idx]
+        img = cv2.imread(path)
+        if img is None:
+            raise RuntimeError(f"Failed to read image: {path}")
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            return {"frames": self.transform(img), "path": path}
+        # default to tensor [C,H,W]
+        if torch is None:
+            arr = (img.astype("float32") / 255.0).transpose(2, 0, 1)
+            return {"frames": arr, "path": path}
+        else:
+            tensor = torch.from_numpy(img.astype("float32").transpose(2, 0, 1) / 255.0)
+            return {"frames": tensor, "path": path}
 
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) < 2:
-        print("Usage: python -m utils.datasets <frames_dir> [labels.csv]")
-    else:
-        root = sys.argv[1]
-        csv_path = sys.argv[2] if len(sys.argv) > 2 else None
-        ds = DrivingFramesDataset(root, labels_csv=csv_path, sequence_length=4, augment=True)
-        print("Dataset size:", len(ds))
-        item = ds[0]
-        print("Sample keys:", list(item.keys()))
+    import argparse
+    parser = argparse.ArgumentParser(description="Sanity check for DrivingFramesDataset")
+    parser.add_argument("--csv", type=Path, default=Path(STEERING_DATASET_DIR) / "driving_log.csv")
+    parser.add_argument("--seq-len", type=int, default=4)
+    args = parser.parse_args(sys.argv[1:])
+    print("CSV:", args.csv)
+    ds = DrivingFramesDataset(csv_path=args.csv, seq_len=args.seq_len, augment=False)
+    print("Dataset size:", len(ds))
+    if len(ds) > 0:
+        item = ds[min(0, len(ds) - 1)]
+        print("Sample path:", item["path"]) 
+        frames = item["frames"]
+        print("Frames type:", type(frames))
+        try:
+            import torch
+            if isinstance(frames, torch.Tensor):
+                print("Frames shape:", frames.shape)
+        except Exception:
+            pass
+        print("Sample steering:", float(item["target"]))

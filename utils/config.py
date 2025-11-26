@@ -37,6 +37,11 @@ class Config:
     FRAME_WIDTH: int = 256
     FRAME_HEIGHT: int = 256
     FRAME_SIZE: Tuple[int, int] = (256, 256)
+    # Policy training defaults (smaller for faster experimentation)
+    POLICY_FRAME_HEIGHT: int = 96
+    POLICY_FRAME_WIDTH: int = 192
+    POLICY_FRAME_SIZE: Tuple[int, int] = (96, 192)
+    NUM_WORKERS: int = 2
 
     # Runtime
     DEVICE: str = "cpu"
@@ -57,6 +62,10 @@ CONFIG = Config(
     FRAME_HEIGHT=int(os.environ.get("FRAME_HEIGHT", 256)),
     FRAME_SIZE=(int(os.environ.get("FRAME_HEIGHT", 256)), int(os.environ.get("FRAME_WIDTH", 256))),
     DEVICE=os.environ.get("DEVICE", "cpu"),
+    POLICY_FRAME_HEIGHT=int(os.environ.get("POLICY_FRAME_HEIGHT", 96)),
+    POLICY_FRAME_WIDTH=int(os.environ.get("POLICY_FRAME_WIDTH", 192)),
+    POLICY_FRAME_SIZE=(int(os.environ.get("POLICY_FRAME_HEIGHT", 96)), int(os.environ.get("POLICY_FRAME_WIDTH", 192))),
+    NUM_WORKERS=int(os.environ.get("NUM_WORKERS", 2)),
 )
 
 # Project root and dataset/checkpoint constants
@@ -64,6 +73,19 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 STEERING_DATASET_DIR = ROOT_DIR / "data" / "steering_dataset"
 POLICY_CHECKPOINT_DIR = ROOT_DIR / "checkpoints" / "policy"
 POLICY_CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Dynamic device detection: prefer MPS on Apple Silicon, then CUDA, else CPU
+try:
+    import torch as _torch  # local alias
+    if _torch.backends.mps.is_available():
+        CONFIG.DEVICE = "mps"
+    elif _torch.cuda.is_available():
+        CONFIG.DEVICE = "cuda"
+    else:
+        CONFIG.DEVICE = "cpu"
+except Exception:
+    # torch not available; keep default from environment or 'cpu'
+    pass
 
 
 def load_config(path: str | Path) -> Config:
