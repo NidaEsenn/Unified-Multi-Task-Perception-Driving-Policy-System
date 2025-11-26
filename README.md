@@ -53,6 +53,15 @@ python -m realtime_demo.overlay_demo --source 0 --weights-det yolov8n.pt
 python -m policy.train_policy --data-dir data/train --epochs 10 --batch-size 8 --lr 1e-3
 ```
 
+### Balanced training (sample)
+To improve performance on rarer steering values and reduce collapse-to-zero steering, run the balanced training helper script which uses a WeightedRandomSampler binned on steering labels.
+
+```bash
+python scripts/train_balanced.py --epochs 8 --batch-size 16 --num-workers 2
+```
+
+This script stores the balanced best checkpoint at `checkpoints/policy/policy_balanced_best.pt`.
+
 ### Real-time demo outputs
 The demo writes annotated overlay videos to an `outputs/` directory by default. These files are generated artifacts and are ignored by Git (see `.gitignore`).
 
@@ -80,6 +89,20 @@ Then add the resulting GIF at `docs/demo_overlay.gif` and include it in the READ
 ```
 
 Tip: Keep GIF duration and FPS small to avoid bloating the repository; use `outputs/` for generated videos and place only committed demo artifacts in `docs/` or `assets/`.
+
+### Example: generate demo with balanced policy model
+If you've run the balanced training script and produced `checkpoints/policy/policy_balanced_best.pt`, you can generate a demo that overlays the policy's steering predictions on a sample video:
+
+```bash
+# generate a short demo using the balanced checkpoint and save to `outputs/realtime_demo_test2.mp4`
+PYTHONPATH=. python -m realtime_demo.overlay_demo \
+  --input-video data/raw_videos/YTDown.com_YouTube_APEMAN-s-Star-Product-C450-Series-A-Dash_Media_4LdYRwgsfLM_002_720p.mp4 \
+  --output-video outputs/realtime_demo_test2.mp4 \
+  --weights-policy checkpoints/policy/policy_balanced_best.pt \
+  --seq-len 3 --max-frames 200 --debug-policy
+```
+
+The output `outputs/realtime_demo_test2.mp4` contains bounding boxes, lane and drivable-area overlays, and a steering HUD showing predicted steering values. Use `--debug-policy` to print steering tensor values to the console while the demo runs.
 
 ## Contributing
 
