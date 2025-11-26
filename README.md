@@ -10,6 +10,8 @@ Lightweight research and portfolio scaffold for autonomous driving tasks: vehicl
 - `realtime_demo/` - overlay demo that composes detectors and masks for visualization.
 - `utils/` - configuration and dataset helpers.
 - `tests/` - lightweight smoke tests for CI.
+- `outputs/` - generated demo videos and visualizations (ignored by git)
+- `.vscode/` - optional local workspace settings (ignored by git)
 - `requirements.txt` - runtime dependencies.
 - `requirements-dev.txt` - development & CI dependencies (includes PyTorch for expanded tests).
 
@@ -61,6 +63,22 @@ python -m realtime_demo.overlay_demo \
   --seq-len 3 --device cpu --max-frames 200
 ```
 The recorded `outputs/demo_output.mp4` contains bounding boxes for detected vehicles, lane and drivable-area mask overlays, and a small steering HUD.
+
+### Demo GIF / Snapshot (Optional)
+To include a short animated preview in documentation, convert a small portion of the demo video into a compact GIF:
+
+```bash
+# create a short 5-second GIF at 10 FPS and width 640px
+ffmpeg -ss 00:00:02 -t 5 -i outputs/demo_output.mp4 -vf "scale=640:-1,fps=10" -y docs/demo_overlay.gif
+```
+
+Then add the resulting GIF at `docs/demo_overlay.gif` and include it in the README to preview overlays:
+
+```markdown
+![Demo Overlay](docs/demo_overlay.gif)
+```
+
+Tip: Keep GIF duration and FPS small to avoid bloating the repository; use `outputs/` for generated videos and place only committed demo artifacts in `docs/` or `assets/`.
 
 ## Contributing
 
