@@ -1,6 +1,7 @@
 # Unified-Multi-Task-Perception-Driving-Policy-System
 A lightweight student-built autonomous driving foundation stack featuring multi-task perception (YOLOv8 + U-Net), a temporal end-to-end driving policy network (ConvLSTM), and a data-engine pipeline for frame curation and real-time evaluation.
 # 🚗 Autonomous Driving Foundation Stack (Student Edition)
+<img width="1536" height="1024" alt="Autonomous Driving Foundation Stack Design" src="https://github.com/user-attachments/assets/76af247e-8548-42a9-85e8-8a549ec37210" />
 
 A lightweight autonomous driving foundation stack designed for research and educational purposes.  
 This project demonstrates a unified approach to **multi-task perception**, **temporal end-to-end control**, and **data-engine curation**—all core components used in modern self-driving systems.
