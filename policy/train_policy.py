@@ -16,7 +16,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from policy.convlstm_model import ConvLSTMPolicy
-from utils.datasets import FrameDataset
+from utils.datasets import DrivingFramesDataset, FrameDataset
+from utils.config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,10 @@ def train(
         for batch in train_loader:
             # TODO: adapt to your dataset return signature
             inputs = batch["frames"].to(device)
-            targets = batch.get("targets", torch.zeros(inputs.shape[0], 2, device=device))
+            # dataset stores `target`; default to zero if missing
+            targets = batch.get("target", torch.zeros(inputs.shape[0], device=device))
+            if targets.dim() == 1:
+                targets = targets.unsqueeze(1)
             optim.zero_grad()
             outputs = model(inputs)
             loss = loss_fn(outputs, targets)
@@ -55,13 +59,14 @@ def train(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", type=str, default="data/train", help="Path to training dataset (TODO)")
+    parser.add_argument("--data-dir", type=str, default=CONFIG.CURATED_DIR, help="Path to training dataset (TODO)")
+    parser.add_argument("--seq-len", type=int, default=4, help="Sequence length for policy frames")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs (TODO tune)")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size (TODO tune)")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     args = parser.parse_args()
 
-    dataset = FrameDataset(root_dir=args.data_dir)
+    dataset = DrivingFramesDataset(root_dir=args.data_dir, sequence_length=args.seq_len, augment=True)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     model = ConvLSTMPolicy()
     train(loader, model, epochs=args.epochs, lr=args.lr)

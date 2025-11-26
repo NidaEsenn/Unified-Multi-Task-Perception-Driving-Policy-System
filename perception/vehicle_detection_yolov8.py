@@ -21,12 +21,13 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from utils.config import CONFIG
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------- Hyperparameters ----------------------------
-MODEL_PATH: str = "yolov8n.pt"  # TODO: point to your trained weights
-DEVICE: str = "cpu"  # e.g., 'cpu' or 'cuda'
+MODEL_PATH: str = f"{CONFIG.CHECKPOINT_DIR}/yolov8n.pt"  # TODO: point to your trained weights
+DEVICE: str = CONFIG.DEVICE  # e.g., 'cpu' or 'cuda'
 CONF_THRES: float = 0.35
 IOU_THRES: float = 0.45
 # -------------------------------------------------------------------------
