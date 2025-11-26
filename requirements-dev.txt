@@ -1,0 +1,13 @@
+# Development & CI requirements. This file is intended for an expanded CI job
+# that runs tests requiring PyTorch (CPU) and other heavy libraries.
+
+numpy>=1.23.0
+opencv-python-headless>=4.5.0
+Pillow>=9.0.0
+pyyaml>=6.0
+pandas>=1.5.0
+scikit-learn>=1.1.0
+tqdm>=4.0.0
+pytest>=7.0.0
+# PyTorch will be installed in CI from the CPU wheel index to avoid CUDA deps
+; torch is installed separately in CI (see workflow)

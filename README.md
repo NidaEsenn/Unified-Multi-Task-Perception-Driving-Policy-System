@@ -1,3 +1,64 @@
+# Unified Multi-Task Perception & Driving Policy System
+
+Lightweight research and portfolio scaffold for autonomous driving tasks: vehicle detection, lane and drivable-area segmentation, policy learning (ConvLSTM), and realtime overlay demos. This repository provides simple placeholders to quickly iterate and integrate models and datasets.
+
+## Project layout
+
+- `perception/` - vehicle detection and segmentation model scaffolds.
+- `policy/` - policy models and training/eval scripts.
+- `data_engine/` - utilities for extracting frames and basic dataset metrics.
+- `realtime_demo/` - overlay demo that composes detectors and masks for visualization.
+- `utils/` - configuration and dataset helpers.
+- `tests/` - lightweight smoke tests for CI.
+- `requirements.txt` - runtime dependencies.
+- `requirements-dev.txt` - development & CI dependencies (includes PyTorch for expanded tests).
+
+## Getting started
+
+1) Create a virtual environment and install dependencies:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+2) Run a quick smoke test locally (minimal dependencies are installed above):
+
+```bash
+python -m tests.smoke_test
+```
+
+3) Optional: install advanced dependencies (PyTorch / dev) for full tests and training:
+
+```bash
+# On Linux, install CPU-only PyTorch wheel (choose version as needed). Example below uses the official CPU wheel index:
+pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+pip install -r requirements-dev.txt
+```
+
+## Quick examples
+
+- Run the overlay demo with a webcam:
+```bash
+python -m realtime_demo.overlay_demo --source 0 --weights-det yolov8n.pt
+```
+
+- Train the policy (placeholder):
+```bash
+python -m policy.train_policy --data-dir data/train --epochs 10 --batch-size 8 --lr 1e-3
+```
+
+## Contributing
+
+1. Fork the repo, create a feature branch and open a PR.
+2. Add tests and documentation for new components.
+3. Use the CI workflow as a baseline: quick smoke checks on PRs and optional expanded tests.
+
+## License
+
+This project is licensed under the MIT License - see the `LICENSE` file for details.
 # Unified-Multi-Task-Perception-Driving-Policy-System
 A lightweight student-built autonomous driving foundation stack featuring multi-task perception (YOLOv8 + U-Net), a temporal end-to-end driving policy network (ConvLSTM), and a data-engine pipeline for frame curation and real-time evaluation.
 # 🚗 Autonomous Driving Foundation Stack (Student Edition)
