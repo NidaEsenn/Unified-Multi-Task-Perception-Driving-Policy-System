@@ -1,0 +1,3 @@
+# CODEOWNERS file assigns ownership for repo files.
+# This is a minimal configuration: everything is owned by the primary maintainer.
+* @NidaEsenn

@@ -1,0 +1,44 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: {}
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    name: Create release artifacts and publish
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create release archive
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          mkdir -p dist
+          git archive --format=tar --prefix="release-${TAG_NAME}/" -o dist/release-${TAG_NAME}.tar ${GITHUB_SHA}
+          tar -czf dist/release-${TAG_NAME}.tar.gz -C dist release-${TAG_NAME}.tar
+          ls -la dist
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload release artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/release-${{ github.ref_name }}.tar.gz
+          asset_name: release-${{ github.ref_name }}.tar.gz
+          asset_content_type: application/gzip
