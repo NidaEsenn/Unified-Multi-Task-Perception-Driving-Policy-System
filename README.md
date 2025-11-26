@@ -1,6 +1,7 @@
 # Unified Multi-Task Perception & Driving Policy System
 
 Lightweight research and portfolio scaffold for autonomous driving tasks: vehicle detection, lane and drivable-area segmentation, policy learning (ConvLSTM), and realtime overlay demos. This repository provides simple placeholders to quickly iterate and integrate models and datasets.
+<img width="1216" height="703" alt="Screenshot 2025-11-26 at 12 01 51 AM" src="https://github.com/user-attachments/assets/b6911fde-67f7-4633-9068-1b6cba5d2c54" />
 
 ## Project layout
 
