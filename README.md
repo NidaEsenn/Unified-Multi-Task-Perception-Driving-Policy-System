@@ -104,6 +104,10 @@ PYTHONPATH=. python -m realtime_demo.overlay_demo \
 
 The output `outputs/realtime_demo_test2.mp4` contains bounding boxes, lane and drivable-area overlays, and a steering HUD showing predicted steering values. Use `--debug-policy` to print steering tensor values to the console while the demo runs.
 
+Preview frame captured from the demo (stored in `docs/demo_preview.png`):
+
+![Demo preview](docs/demo_preview.png)
+
 ## Contributing
 
 1. Fork the repo, create a feature branch and open a PR.
