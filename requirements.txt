@@ -1,0 +1,12 @@
+torch>=1.13.0
+torchvision>=0.14.0
+ultralytics>=8.0.0  # optional: for YOLOv8 convenience API
+opencv-python>=4.5.0
+numpy>=1.23.0
+Pillow>=9.0.0
+pyyaml>=6.0
+pandas>=1.5.0
+scikit-learn>=1.1.0
+tqdm>=4.0.0
+# Optional for segmentation models and other research tools
+segmentation-models-pytorch>=0.3.0
