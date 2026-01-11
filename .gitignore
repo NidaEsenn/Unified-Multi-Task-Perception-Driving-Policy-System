@@ -76,5 +76,9 @@ models/
 outputs/
 *.mp4
 
+# Generated results and documentation figures
+results/
+docs/figures/
+
 # backups
 *~
