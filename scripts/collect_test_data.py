@@ -130,15 +130,15 @@ def create_synthetic_detections(width: int = 640, height: int = 480) -> List[Dic
     num_vehicles = np.random.randint(0, 4)
     
     for _ in range(num_vehicles):
-        x = np.random.randint(width // 4, 3 * width // 4)
-        y = np.random.randint(height // 3, 2 * height // 3)
-        w = np.random.randint(40, 80)
-        h = np.random.randint(30, 60)
+        x = int(np.random.randint(width // 4, 3 * width // 4))
+        y = int(np.random.randint(height // 3, 2 * height // 3))
+        w = int(np.random.randint(40, 80))
+        h = int(np.random.randint(30, 60))
         
         detections.append({
             'bbox': [x, y, x + w, y + h],
-            'class_id': np.random.choice([2, 5, 7]),  # car, bus, truck
-            'class_name': np.random.choice(['car', 'bus', 'truck'])
+            'class_id': int(np.random.choice([2, 5, 7])),  # car, bus, truck
+            'class_name': str(np.random.choice(['car', 'bus', 'truck']))
         })
     
     return detections
